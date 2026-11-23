@@ -18,22 +18,21 @@ jobs:
           node-version: 22
       - run: npm test
       - run: npm run check:examples
-      # Every example config parses and names the keys the gates read.
+      # Every example config is one check-config accepts.
       - name: Example configs are valid
         run: |
-          for f in examples/*/config.json; do
-            node -e '
-              const c = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
-              const need = ["ships", "generated", "areas", "reviewScopes", "tests"];
-              const missing = need.filter((k) => !(k in c));
-              if (missing.length) { console.error(process.argv[1] + " lacks: " + missing.join(", ")); process.exit(1); }
-            ' "$f"
+          for d in plugins/sdlc/examples/*/; do
+            rollout=()
+            [ -f "$d/rollout.json" ] && rollout=(--rollout "$d/rollout.json")
+            node plugins/sdlc/bin/check-config.mjs "$d/config.json" "${rollout[@]}"
           done
       # The plugin runs in any project: its prose points at the plugin's own
       # files (<plugin>/...) and the project's .sdlc/, never at one project.
+      # onboard-project is left out: writing a project's settings and
+      # removing an old copy of the pipeline is its job.
       - name: Skills and agents name no project's paths
         run: |
-          if grep -nE '\.sdlc/(bin|templates|schema)|\.claude/(agents|settings)|docs/STATUS\.md|deploy/CLAUDE\.md|\bTRU-[0-9]' plugins/sdlc/skills/*/SKILL.md plugins/sdlc/agents/*.md; then
+          if grep -rnE --include='*.md' --exclude-dir=onboard-project '\.sdlc/(bin|templates|schema)|\.claude/(agents|settings)|docs/STATUS\.md|deploy/CLAUDE\.md|\bTRU-[0-9]' plugins/sdlc/skills plugins/sdlc/agents; then
             echo "::error::A skill or agent names one project's paths"
             exit 1
           fi

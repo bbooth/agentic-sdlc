@@ -1,0 +1,29 @@
+# Copy to .github/workflows/rollout-watch.yaml. Replace SDLC_SHA (both places) with an
+# agentic-sdlc commit and RUNNER_LABEL with a runner that
+# can reach the cluster.
+name: Rollout watch
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      ticket: { description: The ticket whose merge to watch, required: true }
+      commit: { description: That ticket's merge commit on main, required: true }
+      record: { description: Comment the record on the PR, type: boolean, default: false }
+concurrency:
+  group: rollout-watch
+  cancel-in-progress: false
+jobs:
+  rollout-watch:
+    uses: bbooth/agentic-sdlc/.github/workflows/rollout-watch.yaml@SDLC_SHA
+    permissions:
+      contents: read
+      pull-requests: write
+    with:
+      sdlc-ref: SDLC_SHA
+      runner: RUNNER_LABEL
+      ticket: ${{ inputs.ticket }}
+      commit: ${{ inputs.commit }}
+      record: ${{ inputs.record || false }}
+    secrets:
+      kubeconfig: ${{ secrets.ROLLOUT_WATCH_KUBECONFIG }}

@@ -1,0 +1,27 @@
+{
+  "$comment": "A Cargo workspace with a server and a client crate, before it has a database or a deploy. Copy and adjust; onboard-project writes one from what a repo has.",
+  "tracker": { "kind": "linear", "team": "Example", "key": "ABC", "project": "Example" },
+  "branchPrefixes": ["feat/", "fix/", "docs/", "infra/", "ci/"],
+  "statusFile": "docs/STATUS.md",
+  "generated": { "paths": [], "regenerate": "" },
+  "unreviewed": ["Cargo\\.lock$", "^\\.sdlc/records/"],
+  "ships": ["^crates/", "^Cargo\\.toml$", "^Cargo\\.lock$", "^deploy/"],
+  "code": ["\\.rs$"],
+  "tests": ["^crates/[^/]+/tests/", "/tests?\\.rs$", "_tests?\\.rs$"],
+  "areas": [
+    { "name": "cargo", "cwd": ".", "when": ["^crates/", "^Cargo\\.(toml|lock)$"], "tool": "cargo", "commands": ["cargo fmt --all --check", "cargo clippy --workspace --all-targets -- -D warnings", "cargo test --workspace"] }
+  ],
+  "onEdit": [
+    { "name": "rustfmt", "when": "\\.rs$", "cmd": "rustfmt", "args": ["--check", "--edition", "2021", "{file}"], "cwd": "." }
+  ],
+  "evidence": {
+    "e2e": ["^crates/server/src/"],
+    "browser": []
+  },
+  "reviewScopes": [
+    { "name": "security", "agent": "review-security", "paths": ["."] },
+    { "name": "api", "agent": "review-api", "paths": ["^crates/server/src/(routes|api)/", "^crates/api/"] },
+    { "name": "operability", "agent": "review-operability", "paths": ["^crates/server/", "^deploy/", "^\\.github/", "Dockerfile"] },
+    { "name": "web", "agent": "review-web", "paths": ["^crates/client/"] }
+  ]
+}

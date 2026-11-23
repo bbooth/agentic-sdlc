@@ -1,0 +1,14 @@
+# Copy to .github/workflows/pr-review.yaml. Replace SDLC_SHA (both places) with an
+# agentic-sdlc commit.
+name: PR review
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
+concurrency:
+  group: pr-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  pr-review:
+    uses: bbooth/agentic-sdlc/.github/workflows/pr-review.yaml@SDLC_SHA
+    with:
+      sdlc-ref: SDLC_SHA
