@@ -1,0 +1,17 @@
+{
+  "description": "The checks on every edit: refuse hand edits to generated code, merged migrations and gate records, then lint what was written.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/on-edit.mjs\" --pre" }]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/on-edit.mjs\"", "timeout": 120 }]
+      }
+    ]
+  }
+}
