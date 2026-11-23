@@ -1,0 +1,12 @@
+{
+  "name": "agentic-sdlc",
+  "owner": { "name": "bbooth" },
+  "metadata": { "description": "A gated ticket pipeline for Claude-built projects." },
+  "plugins": [
+    {
+      "name": "sdlc",
+      "source": "./plugins/sdlc",
+      "description": "The ticket pipeline: a skill per stage, the reviewer and verifier agents, the gate checks and the edit hooks."
+    }
+  ]
+}

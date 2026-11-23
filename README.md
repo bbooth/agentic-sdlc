@@ -12,7 +12,19 @@ own settings.
 
 ## Layout
 
+- `.claude-plugin/marketplace.json`: makes this repo a plugin
+  marketplace with one plugin, `sdlc`.
 - `plugins/sdlc/`: the Claude Code plugin.
+  - `skills/`: one skill per stage: `spec-ticket`, `plan-ticket`,
+    `approve-gate`, `build-ticket`, `verify-ticket`, `review-ticket`,
+    `watch-rollout` and `measure-outcome`.
+  - `agents/`: the agents the skills start, each read-only. They are
+    named `sdlc:<name>`: `sdlc:task-reviewer`, `sdlc:verifier`, a
+    reviewer per scope (`sdlc:review-security`, `-api`, `-data`,
+    `-operability`, `-web`), `sdlc:finding-judge`,
+    `sdlc:rollout-investigator` and `sdlc:outcome-analyst`.
+  - `hooks/hooks.json`: runs `bin/on-edit.mjs` before and after every
+    Edit and Write.
   - `bin/`: the gate checks, one per stage (`check-spec.mjs` …
     `check-outcome.mjs`), `approve.mjs` for the owner's decisions, and
     `on-edit.mjs`, the edit hook. Plain Node 22, with no dependencies.
@@ -23,8 +35,31 @@ own settings.
 - `examples/booking/`: booking's `config.json` and `rollout.json`. The
   tests run against them.
 
-Coming next: the skills, agents and hooks in the plugin, and reusable
-workflows for the PR review gate and the rollout watch.
+Coming next: reusable workflows for the PR review gate and the rollout
+watch.
+
+## Using it in a project
+
+1. Add `.sdlc/config.json` (below), and `.sdlc/rollout.json` if the
+   project deploys with Argo Rollouts.
+2. Turn the plugin on for everyone who works in the repo, Claude Code
+   cloud sessions included, in the project's `.claude/settings.json`:
+
+   ```json
+   {
+     "extraKnownMarketplaces": {
+       "agentic-sdlc": { "source": { "source": "github", "repo": "bbooth/agentic-sdlc" } }
+     },
+     "enabledPlugins": { "sdlc@agentic-sdlc": true }
+   }
+   ```
+
+   Or install it for yourself only:
+   `/plugin install sdlc --marketplace bbooth/agentic-sdlc`.
+3. Run `spec-ticket` on the first piece of work.
+
+The skills find the scripts relative to their own directory, so they work
+wherever the plugin is installed.
 
 ## What a project keeps
 
@@ -36,6 +71,9 @@ Everything about one project lives under its `.sdlc/`:
   Only a project that deploys with Argo Rollouts needs it.
 - `constitution.md` (optional): rules that only this project has. Agents
   read it after the shared constitution.
+- `agents/<agent>.md` (optional): what one agent should look for in this
+  project, such as `agents/review-security.md` with the project's
+  tenancy rules. Each agent reads its own file if there is one.
 - `records/<ticket>/<stage>-<round>.json`: the gate records.
 
 The scripts find the project from `CLAUDE_PROJECT_DIR`, else from the git

@@ -1,0 +1,7 @@
+{
+  "name": "sdlc",
+  "version": "0.1.0",
+  "description": "The ticket pipeline: a skill per stage from Spec to Outcome, the reviewer, verifier and analyst agents, the gate checks, and the hooks that check every edit. Each project configures it in .sdlc/config.json.",
+  "author": { "name": "bbooth" },
+  "repository": "https://github.com/bbooth/agentic-sdlc"
+}
