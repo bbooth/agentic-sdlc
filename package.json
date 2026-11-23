@@ -1,0 +1,9 @@
+{
+  "name": "agentic-sdlc",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "SDLC_CONFIG=examples/booking/config.json node --test plugins/sdlc/bin/*.test.mjs",
+    "check:examples": "SDLC_CONFIG=examples/booking/config.json sh -c 'node plugins/sdlc/bin/check-spec.mjs plugins/sdlc/templates/spec.example.md >/dev/null && node plugins/sdlc/bin/check-plan.mjs plugins/sdlc/templates/spec.example.md plugins/sdlc/templates/plan.example.md >/dev/null'"
+  }
+}

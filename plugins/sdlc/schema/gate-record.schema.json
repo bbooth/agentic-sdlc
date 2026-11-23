@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/bbooth/agentic-sdlc/plugins/sdlc/schema/gate-record.schema.json",
+  "title": "Gate record",
+  "description": "What one stage's gate judged and decided. Append-only: a new round is a new record.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "stage", "ticket", "round", "result", "recorded_at", "inputs", "agent", "checks", "findings", "decision", "evidence"],
+  "properties": {
+    "schema": { "const": 1 },
+    "stage": { "enum": ["intake", "spec", "plan", "build", "verify", "adversarial_review", "pr_review", "rollout", "outcome"] },
+    "ticket": { "type": ["string", "null"], "description": "The tracker's ID, e.g. BOOK-12. Null only before the ticket exists." },
+    "round": { "type": "integer", "minimum": 1 },
+    "result": { "enum": ["pass", "fail"] },
+    "recorded_at": { "type": "string", "format": "date-time" },
+    "inputs": {
+      "type": "object",
+      "description": "Exactly what was judged, so the record can't be read against later work.",
+      "properties": {
+        "spec_version": { "type": "string" },
+        "commit": { "type": "string" },
+        "branch": { "type": "string" }
+      }
+    },
+    "agent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "kind"],
+      "properties": {
+        "name": { "type": "string" },
+        "kind": { "enum": ["deterministic", "model", "human"] },
+        "prompt_version": { "type": "string" },
+        "model": { "type": "string" }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "pass", "detail"],
+        "properties": {
+          "name": { "type": "string" },
+          "pass": { "type": "boolean" },
+          "detail": { "type": "string" }
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["severity", "summary", "status"],
+        "properties": {
+          "severity": { "enum": ["blocking", "minor"] },
+          "summary": { "type": "string" },
+          "status": { "enum": ["open", "fixed", "dismissed"] },
+          "reason": { "type": "string" },
+          "scope": { "type": "string", "description": "The scope reviewer that raised it." },
+          "judged": { "enum": ["confirmed", "refuted"], "description": "What the finding judge made of a blocking finding." }
+        }
+      }
+    },
+    "decision": { "type": "string" },
+    "evidence": { "type": "array", "items": { "type": "string" } }
+  }
+}
