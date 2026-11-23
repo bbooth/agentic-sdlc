@@ -32,7 +32,7 @@ jobs:
       # removing an old copy of the pipeline is its job.
       - name: Skills and agents name no project's paths
         run: |
-          if grep -nE '\.sdlc/(bin|templates|schema)|\.claude/(agents|settings)|docs/STATUS\.md|deploy/CLAUDE\.md|\bTRU-[0-9]' $(ls plugins/sdlc/skills/*/SKILL.md | grep -v /onboard-project/) plugins/sdlc/agents/*.md; then
+          if grep -rnE --include='*.md' --exclude-dir=onboard-project '\.sdlc/(bin|templates|schema)|\.claude/(agents|settings)|docs/STATUS\.md|deploy/CLAUDE\.md|\bTRU-[0-9]' plugins/sdlc/skills plugins/sdlc/agents; then
             echo "::error::A skill or agent names one project's paths"
             exit 1
           fi
