@@ -1,0 +1,44 @@
+{
+  "$comment": "What the gate scripts need to know about this repo. Patterns are regular expressions matched against repo-relative paths. The scripts themselves hold no booking paths, so they can move to a shared repo.",
+  "tracker": { "kind": "linear", "team": "TruLinc", "key": "TRU", "project": "Booking" },
+  "branchPrefixes": ["backend/", "web/", "fix/", "docs/", "infra/", "ci/"],
+  "statusFile": "docs/STATUS.md",
+  "generated": {
+    "paths": ["^gen/", "^web/src/api/schema\\.d\\.ts$"],
+    "regenerate": "cd proto && buf generate && cd ../web && npm run generate:types"
+  },
+  "unreviewed": ["package-lock\\.json$", "go\\.sum$", "^\\.sdlc/records/"],
+  "ships": ["^services/", "^pkg/", "^proto/", "^gen/", "^web/", "^deploy/", "^argocd/"],
+  "tests": ["_test\\.go$", "^web/tests/", "\\.(test|spec)\\.(ts|js|mjs)$"],
+  "migrations": "/db/migrations/\\d+_.+\\.sql$",
+  "storeCode": ["\\.sql$", "/internal/store/[^/]+\\.go$"],
+  "storeTests": ["/internal/(store|db)/[^/]+_test\\.go$"],
+  "generatedWith": [
+    { "check": "generated_with_proto", "source": "^proto/.*\\.proto$", "generated": "^gen/", "none": "No proto changed", "ok": "gen/ changed with the proto", "missing": "A .proto changed and gen/ did not: run buf generate" }
+  ],
+  "areas": [
+    { "name": "pkg", "cwd": "pkg", "when": ["^pkg/", "^gen/go/"], "commands": ["go build ./...", "go vet ./...", "go test ./..."], "dockerTests": true },
+    { "name": "services/identity", "cwd": "services/identity", "when": ["^services/identity/", "^gen/go/", "^pkg/"], "commands": ["go build ./...", "go vet ./...", "go test ./..."], "dockerTests": true },
+    { "name": "services/scheduling", "cwd": "services/scheduling", "when": ["^services/scheduling/", "^gen/go/", "^pkg/"], "commands": ["go build ./...", "go vet ./...", "go test ./..."], "dockerTests": true },
+    { "name": "web/server", "cwd": "web/server", "when": ["^web/server/"], "env": { "GOWORK": "off" }, "commands": ["go build ./...", "go vet ./...", "go test ./..."] },
+    { "name": "web", "cwd": "web", "when": ["^web/(?!server/)"], "requires": "web/node_modules", "commands": ["npm run lint", "npm test", "npm run build"] },
+    { "name": "proto", "cwd": "proto", "when": ["^proto/"], "tool": "buf", "commands": ["buf lint"] },
+    { "name": ".sdlc", "cwd": ".", "when": ["^\\.sdlc/"], "commands": ["node --test .sdlc/bin/*.test.mjs"] }
+  ],
+  "onEdit": [
+    { "name": "buf lint", "when": "\\.proto$", "cmd": "buf", "args": ["lint"], "cwd": "proto" },
+    { "name": "eslint", "when": "^web/(src|tests)/.+\\.(ts|vue|js|mjs)$", "requires": "web/node_modules", "cmd": "npx", "args": ["--no-install", "eslint", "{file}"], "cwd": "web" }
+  ],
+  "goWorkOff": ["web/server"],
+  "evidence": {
+    "e2e": ["^proto/.*\\.proto$", "^services/.*\\.go$"],
+    "browser": ["^web/src/(?!api/)"]
+  },
+  "reviewScopes": [
+    { "name": "security", "agent": "review-security", "paths": ["."] },
+    { "name": "api", "agent": "review-api", "paths": ["^proto/", "^services/[^/]+/(cmd|internal)/(?!store/|db/)", "^pkg/(server|auth)"] },
+    { "name": "data", "agent": "review-data", "paths": ["\\.sql$", "/internal/(store|db)/", "^pkg/(db|pgtest|paging)"] },
+    { "name": "operability", "agent": "review-operability", "paths": ["^services/", "^pkg/", "^deploy/", "^argocd/", "^\\.github/", "^compose\\.yaml$", "Dockerfile", "^web/server/"] },
+    { "name": "web", "agent": "review-web", "paths": ["^web/(?!server/)"] }
+  ]
+}

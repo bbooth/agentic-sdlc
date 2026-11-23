@@ -1,0 +1,41 @@
+{
+  "namespace": "booking",
+  "host": "https://booking.trulinc.com",
+  "source": "deploy/.argocd-source-booking.yaml",
+  "prometheus": {
+    "namespace": "monitoring",
+    "service": "prometheus-kube-prometheus-prometheus",
+    "port": 9090
+  },
+  "services": {
+    "identity": {
+      "smoke": "/v1/tenants",
+      "metrics": true,
+      "inputs": [
+        "services/identity/",
+        "gen/go/",
+        "pkg/",
+        "go.work",
+        "go.work.sum"
+      ]
+    },
+    "scheduling": {
+      "smoke": "/v1/businesses",
+      "metrics": true,
+      "inputs": [
+        "services/scheduling/",
+        "gen/go/",
+        "pkg/",
+        "go.work",
+        "go.work.sum"
+      ]
+    },
+    "web": {
+      "smoke": "/",
+      "metrics": false,
+      "inputs": [
+        "web/"
+      ]
+    }
+  }
+}
