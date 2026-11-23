@@ -1,0 +1,167 @@
+name: Rollout watch
+
+# The ticket pipeline's Rollout gate, started by a ticket's merge, for a
+# project that deploys with Argo Rollouts. A project calls it from a
+# workflow on push to main (and workflow_dispatch to watch a merge again by
+# hand; see the README). It only reads the cluster, with the read-only
+# kubeconfig the caller passes as `kubeconfig`; without one it does nothing.
+# Where to look comes from the project's .sdlc/rollout.json.
+on:
+  workflow_call:
+    inputs:
+      sdlc-ref:
+        description: The agentic-sdlc commit or tag whose Rollout gate runs; the one this workflow is pinned to
+        type: string
+        required: true
+      runner:
+        description: A runner that can reach the cluster's API server and the app's public address
+        type: string
+        required: true
+      ticket:
+        description: Run by hand only. The ticket whose merge to watch, e.g. ABC-7
+        type: string
+        default: ''
+      commit:
+        description: Run by hand only. That ticket's merge commit on main
+        type: string
+        default: ''
+      record:
+        description: Run by hand only. Comment the record on the ticket's PR
+        type: boolean
+        default: false
+      kubectl-version:
+        type: string
+        default: v1.33.1
+    secrets:
+      kubeconfig:
+        description: A read-only kubeconfig for the app's cluster
+        required: false
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  rollout-watch:
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 100
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GATE: ${{ github.workspace }}/agentic-sdlc/plugins/sdlc/bin
+    defaults:
+      run:
+        working-directory: project
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          path: project
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          repository: bbooth/agentic-sdlc
+          ref: ${{ inputs.sdlc-ref }}
+          path: agentic-sdlc
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      # A ticket's merge adds that ticket's records. Anything else has no
+      # ticket to record against.
+      - name: Which ticket and PR is this merge?
+        id: merge
+        env:
+          HAS_ACCESS: ${{ secrets.kubeconfig != '' }}
+          ASKED_TICKET: ${{ inputs.ticket }}
+          ASKED_COMMIT: ${{ inputs.commit }}
+          RECORD: ${{ github.event_name == 'push' || inputs.record }}
+        run: |
+          if [ "$HAS_ACCESS" != true ]; then
+            echo "No kubeconfig: the watch is run by hand (watch-rollout)." >> "$GITHUB_STEP_SUMMARY"
+            [ "$GITHUB_EVENT_NAME" = push ] || exit 1
+            exit 0
+          fi
+          if [ ! -f .sdlc/rollout.json ]; then
+            echo "No .sdlc/rollout.json: nothing to watch." >> "$GITHUB_STEP_SUMMARY"
+            [ "$GITHUB_EVENT_NAME" = push ] || exit 1
+            exit 0
+          fi
+          if [ "$GITHUB_EVENT_NAME" = push ]; then
+            commit=$GITHUB_SHA
+            ticket=$(git diff --name-only HEAD^ HEAD -- .sdlc/records | sed -n 's|^\.sdlc/records/\([^/]*\)/.*|\1|p' | sort -u)
+            if [ "$(printf '%s\n' "$ticket" | grep -c .)" != 1 ]; then
+              echo "Not one ticket's merge: no rollout to record." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+          else
+            printf '%s' "$ASKED_TICKET" | grep -Eqx '[A-Z]+-[0-9]+' || { echo "Not a ticket: $ASKED_TICKET"; exit 1; }
+            ticket=$ASKED_TICKET
+            commit=$(git rev-parse --verify --quiet "$ASKED_COMMIT^{commit}") || { echo "No such commit: $ASKED_COMMIT"; exit 1; }
+            git merge-base --is-ancestor "$commit" HEAD || { echo "$commit isn't on main"; exit 1; }
+          fi
+          pr=
+          [ "$RECORD" = true ] && pr=$(gh api "repos/$GITHUB_REPOSITORY/commits/$commit/pulls" --jq '.[0].number // empty')
+          {
+            echo "ticket=$ticket"
+            echo "commit=$commit"
+            echo "pr=$pr"
+          } >> "$GITHUB_OUTPUT"
+      # Into RUNNER_TEMP: self-hosted runners run as a non-root user.
+      - name: Install kubectl
+        if: steps.merge.outputs.ticket != ''
+        env:
+          KUBECONFIG_DATA: ${{ secrets.kubeconfig }}
+          KUBECTL_VERSION: ${{ inputs.kubectl-version }}
+        run: |
+          (umask 077 && printf '%s' "$KUBECONFIG_DATA" > "$RUNNER_TEMP/kubeconfig")
+          echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -sSLo "$RUNNER_TEMP/bin/kubectl" "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+          curl -sSL "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl.sha256" | sed "s|\$|  $RUNNER_TEMP/bin/kubectl|" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/bin/kubectl"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      # The gate waits for CI to build each image, Image Updater to commit
+      # it and the canary to finish. Exit 3 is "not finished yet": go round
+      # again rather than record a rollout halfway.
+      - name: Rollout gate
+        if: steps.merge.outputs.ticket != ''
+        id: gate
+        env:
+          TICKET: ${{ steps.merge.outputs.ticket }}
+          COMMIT: ${{ steps.merge.outputs.commit }}
+        run: |
+          code=3
+          for attempt in 1 2 3; do
+            set +e
+            node "$GATE/check-rollout.mjs" --ticket "$TICKET" --commit "$COMMIT" --wait 30 --comment > "$RUNNER_TEMP/rollout.md"
+            code=$?
+            set -e
+            [ "$code" != 3 ] && break
+          done
+          cat "$RUNNER_TEMP/rollout.md"
+          cat "$RUNNER_TEMP/rollout.md" >> "$GITHUB_STEP_SUMMARY"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+      # The record goes on the merged PR, which the tracker links to the
+      # ticket. Nothing here moves the ticket: that takes the record being read.
+      - name: Record on the PR
+        if: steps.merge.outputs.ticket != '' && steps.merge.outputs.pr != ''
+        env:
+          PR: ${{ steps.merge.outputs.pr }}
+          COMMIT: ${{ steps.merge.outputs.commit }}
+          CODE: ${{ steps.gate.outputs.code }}
+        run: |
+          {
+            sed -e 's|^+++ Gate record$|<details><summary>Gate record</summary>|' -e 's|^+++$|</details>|' "$RUNNER_TEMP/rollout.md"
+            echo
+            echo "Run by the [rollout watch]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID) for $COMMIT."
+            [ "$CODE" = 3 ] && echo "The rollout had not finished after three waits. Run the watch again by hand (\`watch-rollout\`)."
+            echo
+            echo '---'
+            echo '_Generated by [Claude Code](https://claude.ai/code)_'
+          } > "$RUNNER_TEMP/comment.md"
+          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/comment.md"
+      - name: Fail when the rollout did
+        if: always() && steps.merge.outputs.ticket != ''
+        env:
+          CODE: ${{ steps.gate.outputs.code }}
+        run: |
+          rm -f "$RUNNER_TEMP/kubeconfig"
+          exit "${CODE:-1}"

@@ -37,3 +37,15 @@ jobs:
             echo "::error::A skill or agent names one project's paths"
             exit 1
           fi
+
+  # The reusable workflows run in other repos, where a mistake shows up
+  # only when a project calls them.
+  actionlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: '1.24'
+          cache: false
+      - run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7

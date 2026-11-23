@@ -1,0 +1,67 @@
+name: PR review
+
+# The ticket pipeline's PR review gate, for any project. A project calls it
+# from a workflow on pull_request (see the README):
+#
+#   jobs:
+#     pr-review:
+#       uses: bbooth/agentic-sdlc/.github/workflows/pr-review.yaml@<sha>
+#       with:
+#         sdlc-ref: <the same sha>
+#
+# The gate scripts come from agentic-sdlc at `sdlc-ref`, and the project's
+# config from the PR's base branch, so a PR can't pass by loosening either.
+on:
+  workflow_call:
+    inputs:
+      sdlc-ref:
+        description: The agentic-sdlc commit or tag whose gate scripts judge the PR; the one this workflow is pinned to
+        type: string
+        required: true
+      runner:
+        description: The runner label
+        type: string
+        default: ubuntu-latest
+
+permissions:
+  contents: read
+
+jobs:
+  pr-review:
+    runs-on: ${{ inputs.runner }}
+    steps:
+      # The PR's own head, not GitHub's test merge: the gate compares it
+      # with the commit the reviewers read.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          path: project
+      # Side by side, not nested: a checkout inside the project would show
+      # up in its git status.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          repository: bbooth/agentic-sdlc
+          ref: ${{ inputs.sdlc-ref }}
+          path: agentic-sdlc
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - name: PR review gate
+        working-directory: project
+        env:
+          BASE: origin/${{ github.base_ref }}
+          GATE: ${{ github.workspace }}/agentic-sdlc/plugins/sdlc/bin
+        run: |
+          if ! git show "$BASE:.sdlc/config.json" > "$RUNNER_TEMP/config.json" 2>/dev/null; then
+            echo "No .sdlc/config.json on $BASE yet: no PR review gate." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          export SDLC_CONFIG="$RUNNER_TEMP/config.json"
+          set +e
+          node "$GATE/check-pr.mjs" --event "$GITHUB_EVENT_PATH" --base "$BASE" --comment > "$RUNNER_TEMP/out.md" 2> "$RUNNER_TEMP/err.txt"
+          code=$?
+          cat "$RUNNER_TEMP/out.md" "$RUNNER_TEMP/err.txt"
+          # Linear's collapsible markers mean nothing on GitHub.
+          { grep -v '^+++' "$RUNNER_TEMP/out.md"; cat "$RUNNER_TEMP/err.txt"; } >> "$GITHUB_STEP_SUMMARY"
+          exit $code

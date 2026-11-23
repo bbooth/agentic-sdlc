@@ -35,8 +35,9 @@ own settings.
 - `examples/booking/`: booking's `config.json` and `rollout.json`. The
   tests run against them.
 
-Coming next: reusable workflows for the PR review gate and the rollout
-watch.
+- `.github/workflows/pr-review.yaml` and `rollout-watch.yaml`: reusable
+  workflows for the PR review gate and the rollout watch, which projects
+  call from their own CI.
 
 ## Using it in a project
 
@@ -56,7 +57,65 @@ watch.
 
    Or install it for yourself only:
    `/plugin install sdlc --marketplace bbooth/agentic-sdlc`.
-3. Run `spec-ticket` on the first piece of work.
+3. Call the PR review gate on every pull request, and make `pr-review`
+   a required check on `main`. Pin both lines to the same agentic-sdlc
+   commit, so a change here reaches the project only when it moves the pin:
+
+   ```yaml
+   # .github/workflows/pr-review.yaml
+   name: PR review
+   on:
+     pull_request:
+       types: [opened, synchronize, reopened, edited, labeled, unlabeled]
+   concurrency:
+     group: pr-review-${{ github.event.pull_request.number }}
+     cancel-in-progress: true
+   jobs:
+     pr-review:
+       uses: bbooth/agentic-sdlc/.github/workflows/pr-review.yaml@<sha>
+       with:
+         sdlc-ref: <sha>
+   ```
+
+   It judges the PR with the base branch's `.sdlc/config.json`, and does
+   nothing until the base has one.
+4. If the project deploys with Argo Rollouts, call the rollout watch after
+   each merge. Give it a runner that can reach the cluster, and a
+   read-only kubeconfig as a secret:
+
+   ```yaml
+   # .github/workflows/rollout-watch.yaml
+   name: Rollout watch
+   on:
+     push:
+       branches: [main]
+     workflow_dispatch:
+       inputs:
+         ticket: { description: The ticket whose merge to watch, required: true }
+         commit: { description: That ticket's merge commit on main, required: true }
+         record: { description: Comment the record on the PR, type: boolean, default: false }
+   concurrency:
+     group: rollout-watch
+     cancel-in-progress: false
+   jobs:
+     rollout-watch:
+       uses: bbooth/agentic-sdlc/.github/workflows/rollout-watch.yaml@<sha>
+       permissions:
+         contents: read
+         pull-requests: write
+       with:
+         sdlc-ref: <sha>
+         runner: <a runner label>
+         ticket: ${{ inputs.ticket }}
+         commit: ${{ inputs.commit }}
+         record: ${{ inputs.record || false }}
+       secrets:
+         kubeconfig: ${{ secrets.ROLLOUT_WATCH_KUBECONFIG }}
+   ```
+
+   It finds the ticket from the records the merge added, waits for the
+   canary to finish, and comments the gate record on the merged PR.
+5. Run `spec-ticket` on the first piece of work.
 
 The skills find the scripts relative to their own directory, so they work
 wherever the plugin is installed.
