@@ -25,7 +25,10 @@ const STORE_CODE = patterns(config.storeCode);
 const STORE_TESTS = patterns(config.storeTests);
 
 const isTest = (f) => matchesAny(TESTS, f);
-const isCode = (f) => !isTest(f) && (/\.(go|vue|ts|mjs)$/.test(f) || /\.sql$/.test(f)) && !matchesAny(UNCOUNTED, f);
+// Source files that need a test changed with them. The default suits a Go
+// and TypeScript repo; a project in another language sets `code`.
+const CODE = config.code ? patterns(config.code) : [/\.(go|vue|ts|mjs|sql)$/];
+const isCode = (f) => !isTest(f) && matchesAny(CODE, f) && !matchesAny(UNCOUNTED, f);
 
 // The areas a diff touches, each with its commands from the config. An area
 // with `dockerTests` runs `go test -short` where there is no Docker; one

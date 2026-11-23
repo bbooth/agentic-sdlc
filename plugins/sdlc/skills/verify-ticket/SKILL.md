@@ -8,7 +8,7 @@ description: Take a built sub-ticket through the Verify gate, where an independe
 `<plugin>` below is this plugin's root, two directories above this
 skill's base directory. The project's own settings are in its
 `.sdlc/config.json`. If it has none, stop and say the project hasn't set
-up the pipeline (the agentic-sdlc README says how). This plugin's
+up the pipeline: `onboard-project` sets it up. This plugin's
 agents are launched as `sdlc:<name>`, e.g. `sdlc:verifier`.
 
 You run the stage; you don't do the verifying and you don't fix anything.

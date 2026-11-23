@@ -32,8 +32,10 @@ own settings.
   - `templates/`: the shape of a spec and a plan, each with a worked
     example.
   - `schema/gate-record.schema.json`: what a gate writes down.
-- `examples/booking/`: booking's `config.json` and `rollout.json`. The
-  tests run against them.
+  - `config.md`: a project's settings, key by key, and `examples/`:
+    booking's `config.json` and `rollout.json`, which the tests run
+    against, and a small Rust one.
+  - `templates/workflows/`: the CI callers a project copies.
 
 - `.github/workflows/pr-review.yaml` and `rollout-watch.yaml`: reusable
   workflows for the PR review gate and the rollout watch, which projects
@@ -41,8 +43,12 @@ own settings.
 
 ## Using it in a project
 
-1. Add `.sdlc/config.json` (below), and `.sdlc/rollout.json` if the
-   project deploys with Argo Rollouts.
+The `onboard-project` skill does all of this in one PR: turn the plugin
+on for yourself (`/plugin install sdlc --marketplace bbooth/agentic-sdlc`)
+and ask Claude to onboard the repo. By hand:
+
+1. Add `.sdlc/config.json`, and `.sdlc/rollout.json` if the project
+   deploys with Argo Rollouts (see `plugins/sdlc/config.md`).
 2. Turn the plugin on for everyone who works in the repo, Claude Code
    cloud sessions included, in the project's `.claude/settings.json`:
 
@@ -57,63 +63,16 @@ own settings.
 
    Or install it for yourself only:
    `/plugin install sdlc --marketplace bbooth/agentic-sdlc`.
-3. Call the PR review gate on every pull request, and make `pr-review`
-   a required check on `main`. Pin both lines to the same agentic-sdlc
-   commit, so a change here reaches the project only when it moves the pin:
-
-   ```yaml
-   # .github/workflows/pr-review.yaml
-   name: PR review
-   on:
-     pull_request:
-       types: [opened, synchronize, reopened, edited, labeled, unlabeled]
-   concurrency:
-     group: pr-review-${{ github.event.pull_request.number }}
-     cancel-in-progress: true
-   jobs:
-     pr-review:
-       uses: bbooth/agentic-sdlc/.github/workflows/pr-review.yaml@<sha>
-       with:
-         sdlc-ref: <sha>
-   ```
-
-   It judges the PR with the base branch's `.sdlc/config.json`, and does
+3. Call the PR review gate on every pull request: copy
+   `plugins/sdlc/templates/workflows/pr-review.yaml` to
+   `.github/workflows/`, and make `pr-review` a required check on `main`.
+   Pin its `uses:` and `sdlc-ref` to the same agentic-sdlc commit, so a
+   change here reaches the project only when it moves the pin. It judges the PR with the base branch's `.sdlc/config.json`, and does
    nothing until the base has one.
 4. If the project deploys with Argo Rollouts, call the rollout watch after
-   each merge. Give it a runner that can reach the cluster, and a
-   read-only kubeconfig as a secret:
-
-   ```yaml
-   # .github/workflows/rollout-watch.yaml
-   name: Rollout watch
-   on:
-     push:
-       branches: [main]
-     workflow_dispatch:
-       inputs:
-         ticket: { description: The ticket whose merge to watch, required: true }
-         commit: { description: That ticket's merge commit on main, required: true }
-         record: { description: Comment the record on the PR, type: boolean, default: false }
-   concurrency:
-     group: rollout-watch
-     cancel-in-progress: false
-   jobs:
-     rollout-watch:
-       uses: bbooth/agentic-sdlc/.github/workflows/rollout-watch.yaml@<sha>
-       permissions:
-         contents: read
-         pull-requests: write
-       with:
-         sdlc-ref: <sha>
-         runner: <a runner label>
-         ticket: ${{ inputs.ticket }}
-         commit: ${{ inputs.commit }}
-         record: ${{ inputs.record || false }}
-       secrets:
-         kubeconfig: ${{ secrets.ROLLOUT_WATCH_KUBECONFIG }}
-   ```
-
-   It finds the ticket from the records the merge added, waits for the
+   each merge: copy `plugins/sdlc/templates/workflows/rollout-watch.yaml`,
+   pinned the same way, with a runner that can reach the cluster and a
+   read-only kubeconfig in the `ROLLOUT_WATCH_KUBECONFIG` secret. It finds the ticket from the records the merge added, waits for the
    canary to finish, and comments the gate record on the merged PR.
 5. Run `spec-ticket` on the first piece of work.
 
@@ -122,51 +81,10 @@ wherever the plugin is installed.
 
 ## What a project keeps
 
-Everything about one project lives under its `.sdlc/`:
-
-- `config.json`: what the gates need to know about this repo (below).
-- `rollout.json`: where the Rollout gate looks: the namespace, the public
-  address, Prometheus, and each service's smoke path and image inputs.
-  Only a project that deploys with Argo Rollouts needs it.
-- `constitution.md` (optional): rules that only this project has. Agents
-  read it after the shared constitution.
-- `agents/<agent>.md` (optional): what one agent should look for in this
-  project, such as `agents/review-security.md` with the project's
-  tenancy rules. Each agent reads its own file if there is one.
-- `records/<ticket>/<stage>-<round>.json`: the gate records.
-
-The scripts find the project from `CLAUDE_PROJECT_DIR`, else from the git
-checkout they run in. `SDLC_CONFIG` and `SDLC_ROLLOUT` override where the
-two files are read. CI uses `SDLC_CONFIG` to judge a PR by its base
-branch's config, so a PR can't loosen its own gate. Without a config the
-gates refuse to run (exit 2). The edit hook still runs its generic checks:
-records are append-only, and Go files get gofmt and vet.
-
-## `config.json`
-
-Patterns are regular expressions, matched against paths relative to the
-repo root.
-
-| Key | What it's for |
-|---|---|
-| `tracker` | The ticket tracker: `kind` (`linear`), `team`, `key` (the ID prefix) and `project`. |
-| `branchPrefixes` | The prefixes the Build gate accepts on a branch. |
-| `statusFile` | A file every ticket's PR must update, such as `docs/STATUS.md`. Leave it out for none. |
-| `generated.paths` | Generated files. They can't be edited by hand, and nothing counts or reviews them. |
-| `generated.regenerate` | The command the edit hook suggests in place of a hand edit. |
-| `unreviewed` | Other paths left out of size limits and review, such as lockfiles. |
-| `ships` | Paths that reach production. A PR touching these needs a ticket's records, or the `no-ticket` label. |
-| `tests` | What counts as a test file. |
-| `migrations` | Migration files, which can't be edited once on `main`. An `.up.sql` needs its `.down.sql`. |
-| `storeCode`, `storeTests` | Code that runs SQL, and the tests that run it against a real database. One needs the other. |
-| `generatedWith` | Sources and the code generated from them, which must change together. `check` names the gate check, and `none`, `ok` and `missing` are its messages. |
-| `areas` | The parts of the repo with their own commands. Each has a `name`, a `cwd`, the paths it covers (`when`), `commands`, and optionally `env`, a `tool` it needs, a path it `requires`, and `dockerTests` (without Docker, `go test` runs with `-short`). |
-| `onEdit` | Linters for the edit hook: a `name`, the files they cover (`when`), `cmd`, `args` (`{file}` is the edited file), `cwd`, and optionally a path it `requires`. |
-| `goWorkOff` | Go modules outside `go.work`, which build with `GOWORK=off`. |
-| `evidence` | What Verify needs beyond tests: each kind (`e2e`, `browser`) and the paths that call for it. |
-| `reviewScopes` | The Adversarial review's reviewers: each has a `name`, the `agent` that reviews it, and the `paths` that call for it. |
-
-`examples/booking/config.json` is a complete example.
+A project's own settings live under its `.sdlc/`. The plugin's
+[`config.md`](plugins/sdlc/config.md) explains each file and every
+`config.json` key, and `plugins/sdlc/examples/` has a complete config for
+booking and a small one for a Rust project.
 
 ## Developing
 
