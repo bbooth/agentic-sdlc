@@ -7,7 +7,7 @@
 
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { PLACEHOLDER, bullets, emit, field, numbered, parseArgs, record, requireConfig, sections, subsections } from './lib.mjs';
+import { PLACEHOLDER, bullets, emit, field, numbered, parseArgs, record, sections, subsections } from './lib.mjs';
 
 const SECTIONS = ['Design', 'Tasks', 'Risks'];
 // A task is one PR. An L is too big to review in one, so it's split.
@@ -80,7 +80,6 @@ export function gateRecord(spec, plan, opts = {}) {
 }
 
 function main(argv) {
-  requireConfig();
   const { files, flags } = parseArgs(argv, ['--ticket', '--round']);
   if (files.length !== 2) {
     console.error('usage: check-plan.mjs <spec.md> <plan.md> [--ticket ID] [--round N] [--comment]');

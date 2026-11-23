@@ -14,7 +14,13 @@ owner merges the result. Everything goes in one PR.
 
 ## Before you start
 
-- Work on a branch from an up-to-date default branch.
+- Work on a branch from an up-to-date default branch. A repo with no
+  commits has no branch to open a PR against: ask the owner to OK a
+  README-only first commit on the default branch, push it, then branch
+  from it.
+- The first spec can come before onboarding: `spec-ticket`, `approve-gate`
+  and `plan-ticket` run without a config. Build and every stage after it
+  need this PR merged.
 - If `.sdlc/config.json` already exists, this is a re-onboarding: run
   `node <plugin>/bin/check-config.mjs`, fix only what it reports and what
   the owner asked for, and keep the rest.
@@ -86,8 +92,10 @@ owner merges the result. Everything goes in one PR.
    `pr-review.yaml` always, and `rollout-watch.yaml` only with a
    `rollout.json`, into `.github/workflows/`. Replace `SDLC_SHA` in both
    `uses:` and `sdlc-ref` with the same commit: `git ls-remote https://github.com/bbooth/agentic-sdlc main`.
-   Replace `RUNNER_LABEL` with the runner label the repo's CI already
-   uses. If a workflow of
+   The PR review gate runs on `vars.CI_RUNNER`, else `ubuntu-latest`;
+   change that line if the repo's CI picks its runner another way. In
+   `rollout-watch.yaml`, replace `RUNNER_LABEL` with a runner that can
+   reach the cluster. If a workflow of
    the same name exists, replace its job and keep the file's name, so a
    required check keeps its name.
 9. **Point to the pipeline in `CLAUDE.md`**: a short section saying work

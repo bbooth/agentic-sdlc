@@ -6,7 +6,7 @@
 //   node bin/approve.mjs --ticket ABC-12 --stage spec --said "I approve" [--reject] [--spec-version 2] [--comment]
 
 import { pathToFileURL } from 'node:url';
-import { emit, parseArgs, record, requireConfig } from './lib.mjs';
+import { emit, parseArgs, record } from './lib.mjs';
 
 // The stages with an owner decision, and where a ticket goes on a yes.
 const NEXT = { spec: 'Advance to Plan', pr_review: 'Merge, then advance to Rollout', rollout: 'Promote to production, then advance to Outcome' };
@@ -25,7 +25,6 @@ export function approvalRecord({ stage, said, reject = false, specVersion = '1',
 }
 
 function main(argv) {
-  requireConfig();
   const { flags } = parseArgs(argv, ['--ticket', '--stage', '--said', '--spec-version', '--round']);
   if (!flags.ticket || !(flags.stage in NEXT) || typeof flags.said !== 'string' || !flags.said.trim()) {
     console.error(`usage: approve.mjs --ticket ID --stage ${Object.keys(NEXT).join('|')} --said "the owner's words" [--reject] [--spec-version N] [--round N] [--comment]`);

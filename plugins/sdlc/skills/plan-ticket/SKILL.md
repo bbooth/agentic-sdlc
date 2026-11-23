@@ -7,8 +7,9 @@ description: Split a Linear ticket whose spec is approved into PR-sized sub-tick
 
 `<plugin>` below is this plugin's root, two directories above this
 skill's base directory. The project's own settings are in its
-`.sdlc/config.json`. If it has none, stop and say the project hasn't set
-up the pipeline: `onboard-project` sets it up. This plugin's
+`.sdlc/config.json`. This stage can run before it has one, as a new
+project's first spec usually does: take the tracker from the owner, and
+say `onboard-project` must run before Build. This plugin's
 agents are launched as `sdlc:<name>`, e.g. `sdlc:verifier`.
 
 You are the planner. You decide how the work is cut up; you don't write
