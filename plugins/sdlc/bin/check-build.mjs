@@ -16,8 +16,9 @@ import { pathToFileURL } from 'node:url';
 import { config, emit, matchesAny, parseArgs, patterns, record, requireConfig } from './lib.mjs';
 
 const PREFIXES = config.branchPrefixes ?? [];
-// Lines added plus removed, not counting generated files or lockfiles. Past
-// this a task is more than one PR's review. Lockfiles still get reviewed.
+// Lines added plus removed, not counting generated files or lockfiles, with
+// tests at half. Past this a task is more than one PR's review. Lockfiles
+// still get reviewed.
 const SIZE_LIMITS = { S: 300, M: 800 };
 const LOCKFILES = /(^|\/)(Cargo\.lock|package-lock\.json|npm-shrinkwrap\.json|yarn\.lock|pnpm-lock\.yaml|bun\.lockb?|go\.sum|go\.work\.sum|poetry\.lock|uv\.lock|Pipfile\.lock|Gemfile\.lock|composer\.lock)$/;
 const UNCOUNTED = [LOCKFILES, ...patterns([...(config.generated?.paths ?? []), ...(config.unreviewed ?? [])])];
@@ -81,8 +82,11 @@ export function diffChecks({ branch, changes, size }) {
   const status = config.statusFile;
   if (status) add('status_updated', files.includes(status), files.includes(status) ? `${status} changed` : `${status} is updated in the same PR as the work`);
 
-  const lines = changes.filter((c) => !UNCOUNTED.some((re) => re.test(c.file))).reduce((n, c) => n + c.lines, 0);
-  if (size in SIZE_LIMITS) add('size', lines <= SIZE_LIMITS[size], `${lines} lines changed; size ${size} allows ${SIZE_LIMITS[size]}`);
+  // Tests count at half, so testing well doesn't crowd out the code.
+  const counted = changes.filter((c) => !UNCOUNTED.some((re) => re.test(c.file)));
+  const testLines = counted.filter((c) => isTest(c.file)).reduce((n, c) => n + c.lines, 0);
+  const lines = counted.reduce((n, c) => n + c.lines, 0) - testLines + Math.ceil(testLines / 2);
+  if (size in SIZE_LIMITS) add('size', lines <= SIZE_LIMITS[size], `${lines} lines changed, counting ${testLines} test lines at half; size ${size} allows ${SIZE_LIMITS[size]}`);
   else add('size', false, 'Pass the task\'s size: --size S or --size M');
 
   return checks;

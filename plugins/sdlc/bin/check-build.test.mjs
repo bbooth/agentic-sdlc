@@ -43,6 +43,13 @@ test('generated files do not count toward size', () => {
   assert.deepEqual(failed([...good, c('services/identity/internal/service/tenants.go', 900)]), ['size']);
 });
 
+test('tests count at half toward size', () => {
+  const code = 'services/identity/internal/service/tenants.go';
+  const tests = 'services/identity/internal/service/tenants_test.go';
+  assert.deepEqual(failed([c(code, 499), c(tests, 600), c('docs/STATUS.md', 1)]), []);
+  assert.deepEqual(failed([c(code, 499), c(tests, 602), c('docs/STATUS.md', 1)]), ['size']);
+});
+
 test('lockfiles do not count toward size', () => {
   assert.deepEqual(failed([...good, c('Cargo.lock', 3000), c('web/package-lock.json', 3000), c('services/identity/go.sum', 900)]), []);
   assert.deepEqual(failed([...good, c('docs/Cargo.lock.md', 900)]), ['size']);
