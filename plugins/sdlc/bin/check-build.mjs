@@ -16,10 +16,11 @@ import { pathToFileURL } from 'node:url';
 import { config, emit, matchesAny, parseArgs, patterns, record, requireConfig } from './lib.mjs';
 
 const PREFIXES = config.branchPrefixes ?? [];
-// Lines added plus removed, not counting generated files. Past this a task
-// is more than one PR's review.
+// Lines added plus removed, not counting generated files or lockfiles. Past
+// this a task is more than one PR's review. Lockfiles still get reviewed.
 const SIZE_LIMITS = { S: 300, M: 800 };
-const UNCOUNTED = patterns([...(config.generated?.paths ?? []), ...(config.unreviewed ?? [])]);
+const LOCKFILES = /(^|\/)(Cargo\.lock|package-lock\.json|npm-shrinkwrap\.json|yarn\.lock|pnpm-lock\.yaml|bun\.lockb?|go\.sum|go\.work\.sum|poetry\.lock|uv\.lock|Pipfile\.lock|Gemfile\.lock|composer\.lock)$/;
+const UNCOUNTED = [LOCKFILES, ...patterns([...(config.generated?.paths ?? []), ...(config.unreviewed ?? [])])];
 const TESTS = patterns(config.tests);
 const STORE_CODE = patterns(config.storeCode);
 const STORE_TESTS = patterns(config.storeTests);

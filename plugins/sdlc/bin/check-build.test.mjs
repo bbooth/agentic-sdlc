@@ -43,6 +43,11 @@ test('generated files do not count toward size', () => {
   assert.deepEqual(failed([...good, c('services/identity/internal/service/tenants.go', 900)]), ['size']);
 });
 
+test('lockfiles do not count toward size', () => {
+  assert.deepEqual(failed([...good, c('Cargo.lock', 3000), c('web/package-lock.json', 3000), c('services/identity/go.sum', 900)]), []);
+  assert.deepEqual(failed([...good, c('docs/Cargo.lock.md', 900)]), ['size']);
+});
+
 test('the status file is part of the work', () => {
   assert.deepEqual(failed(good.slice(0, 2)), ['status_updated']);
 });
