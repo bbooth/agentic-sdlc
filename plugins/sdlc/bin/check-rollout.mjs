@@ -17,7 +17,7 @@
 // record lives in its ticket comment.
 
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { emit, parseArgs, projectRoot, record, requireConfig } from './lib.mjs';
@@ -149,7 +149,12 @@ async function main(argv) {
     console.error('usage: check-rollout.mjs --ticket ID --commit <merge commit> [--services a,b | none] [--wait minutes] [--no-smoke] [--round N] [--comment]');
     return 2;
   }
-  const config = JSON.parse(readFileSync(process.env.SDLC_ROLLOUT || join(projectRoot(), '.sdlc/rollout.json'), 'utf8'));
+  const path = process.env.SDLC_ROLLOUT || join(projectRoot(), '.sdlc/rollout.json');
+  if (!existsSync(path)) {
+    console.error(`No ${path}: this project doesn't deploy with Argo Rollouts yet, so there is no rollout to judge (watch-rollout says what to do with the ticket).`);
+    return 2;
+  }
+  const config = JSON.parse(readFileSync(path, 'utf8'));
   const before = digests(run('git', ['show', `${flags.commit}:${config.source}`]));
   const files = run('git', ['diff', '--name-only', `${flags.commit}^`, flags.commit]).split('\n').filter(Boolean);
   const services = flags.services === 'none' ? [] : flags.services ? flags.services.split(',').map((s) => s.trim()).filter((s) => config.services[s]) : rebuilt(files, config.services);

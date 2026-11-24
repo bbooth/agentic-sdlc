@@ -25,6 +25,16 @@ does. You follow one merge to the cluster and record what happened.
   digests ArgoCD Image Updater commits there, not your checkout. Run it
   from any checkout of `main`.
 
+## A project that doesn't deploy yet
+
+Without `.sdlc/rollout.json` nothing reaches a cluster, and there is no
+Rollout gate to run (`check-rollout.mjs` says so and exits 2). Do step 1,
+then set the task's status to Done and leave its Stage label on
+**Rollout**. Comment on the task that it merged with nothing deployed,
+and that its Rollout is judged with the first release that deploys it,
+naming that ticket if the plan has one. Its parent's Outcome waits until
+then too: `check-outcome.mjs` needs every task's Rollout to have passed.
+
 ## Steps
 
 1. If no PR review record is on the ticket yet, write down what was
