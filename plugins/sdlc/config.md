@@ -36,7 +36,7 @@ repo root.
 | `generated.regenerate` | The command the edit hook suggests in place of a hand edit. |
 | `unreviewed` | Other paths left out of size limits and review. Common lockfiles (`Cargo.lock`, `package-lock.json`, `go.sum` and the like) never count toward size anyway, but are still reviewed unless listed here. |
 | `ships` | Paths that reach production. A PR touching these needs a ticket's records, or the `no-ticket` label. |
-| `tests` | What counts as a test file. |
+| `tests` | What counts as a test file. Test lines count at half toward a task's size. |
 | `code` | Source files that need a test changed with them. Defaults to Go, TypeScript, Vue, `.mjs` and SQL. A Rust project sets `["\\.rs$"]` and keeps its tests in files the `tests` patterns match, because a test inline in the same file can't be told apart. |
 | `migrations` | Migration files, which can't be edited once on `main`. An `.up.sql` needs its `.down.sql`. |
 | `storeCode`, `storeTests` | Code that runs SQL, and the tests that run it against a real database. One needs the other. |
