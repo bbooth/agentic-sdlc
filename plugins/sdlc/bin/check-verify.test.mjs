@@ -53,6 +53,12 @@ test('a re-run must pass without skipping', () => {
   assert.match(ranAndPassed('go test -run X ./...', 0, 'ok  pkg 0.1s [no tests to run]'), /no tests/);
   assert.match(ranAndPassed('go test -run X ./...', 1, '--- FAIL: TestX'), /failed/);
   assert.equal(ranAndPassed('npm test -- tenants', 0, '1 passed'), null);
+  const cargo = 'cargo test -p server --test linear lands_once -- --exact';
+  assert.equal(ranAndPassed(cargo, 0, 'running 1 test\ntest lands_once ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s\n'), null);
+  assert.equal(ranAndPassed(cargo, 0, 'test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out\n'), null);
+  assert.match(ranAndPassed(cargo, 0, 'running 0 tests\n\ntest result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out\n'), /no test reported a pass/);
+  assert.match(ranAndPassed(cargo, 0, 'test lands_once ... ignored\n\ntest result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out\n'), /ignored/);
+  assert.match(ranAndPassed(cargo, 101, 'test result: FAILED. 0 passed; 1 failed; 0 ignored'), /failed/);
 });
 
 test('a command is split on quotes, never handed to a shell', () => {

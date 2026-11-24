@@ -23,7 +23,7 @@ const OBSERVED = ['test', 'e2e', 'browser'];
 const KINDS = [...OBSERVED, 'inspection'];
 // The only commands the gate will run from a verification file. They run
 // without a shell, so quoting is all the syntax a command can use.
-const RUNNABLE = ['go test', 'npm test', 'npx vitest run', 'node --test'];
+const RUNNABLE = ['go test', 'npm test', 'npx vitest run', 'node --test', 'cargo test'];
 export const argv = (command) => (command.match(/'[^']*'|"[^"]*"|\S+/g) ?? []).map((a) => a.replace(/^(['"])(.*)\1$/, '$2'));
 
 // What CLAUDE.md's Verification section asks for beyond tests, by what the
@@ -84,6 +84,12 @@ export function ranAndPassed(command, status, output) {
   if (/no tests to run/.test(output)) return 'matched no tests';
   if (command.startsWith('go test') && /^\s*--- SKIP/m.test(output)) return 'a test was skipped';
   if (command.startsWith('go test') && !/^\s*--- PASS/m.test(output)) return 'no test reported a pass';
+  if (command.startsWith('cargo test')) {
+    // One "test result:" line per test binary; a name filter leaves the others at 0 passed.
+    const results = [...output.matchAll(/^test result: \w+\. (\d+) passed; \d+ failed; (\d+) ignored/gm)];
+    if (results.some((m) => Number(m[2]) > 0)) return 'a test was ignored';
+    if (!results.some((m) => Number(m[1]) > 0)) return 'no test reported a pass';
+  }
   return null;
 }
 

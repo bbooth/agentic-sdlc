@@ -46,7 +46,9 @@ Rules:
   (you read the code) can support a verdict but not carry it.
 - A `test` entry names the test as `path/to/file:TestName` and gives the
   exact command and the directory it runs in; the gate runs it again.
-  Only `go test`, `npm test`, `npx vitest run` and `node --test`.
+  Only `go test`, `npm test`, `npx vitest run`, `node --test` and
+  `cargo test` (for Rust, name one test: `cargo test -p <crate> --test
+  <file> <name> -- --exact`).
 - A criterion that isn't met, a test that can't fail, and a broken rule
   from the constitution or a `CLAUDE.md` are **blocking** findings.
   Anything else worth fixing is **minor**.
