@@ -26,9 +26,12 @@ const WRITES = /\bkubectl\b.*\b(exec|apply|patch|delete|edit|replace|scale|annot
 // longest stretch of time the metric names ("in the 24 hours after"), or 0.
 export function metrics(spec) {
   return bullets(sections(spec)['Success metrics'] ?? '').map((line, i) => {
-    const signal = line.match(/\(signal: *([^)]+)\)/i)?.[1].trim() ?? '';
-    const windows = [...line.replace(/\(signal:[^)]*\)/i, '').matchAll(/(\d+)[ -]?(minute|hour|day|week)s?\b/gi)].map((m) => Number(m[1]) * UNIT_MS[m[2].toLowerCase()]);
-    return { id: `M-${i + 1}`, text: line.replace(/\s*\(signal:[^)]*\)/i, '').trim(), signal, windowMs: Math.max(0, ...windows) };
+    // The signal runs to the line's last ")": a signal may hold its own,
+    // e.g. a log pattern.
+    const tail = line.match(/\s*\(signal: *(.+)\)\s*$/i);
+    const text = (tail ? line.slice(0, tail.index) : line).trim();
+    const windows = [...text.matchAll(/(\d+)[ -]?(minute|hour|day|week)s?\b/gi)].map((m) => Number(m[1]) * UNIT_MS[m[2].toLowerCase()]);
+    return { id: `M-${i + 1}`, text, signal: tail?.[1].trim() ?? '', windowMs: Math.max(0, ...windows) };
   });
 }
 

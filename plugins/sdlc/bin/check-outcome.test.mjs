@@ -41,6 +41,13 @@ test('a window named only inside the signal is not a wait', () => {
   assert.equal(metrics('## Success metrics\n\n- No 5xx (signal: `rate(x[5 minutes])`)\n')[0].windowMs, 0);
 });
 
+test('a signal keeps the brackets inside it', () => {
+  const [m] = metrics('## Success metrics\n\n* Zero requests fail in the 24 hours after each release (signal: pod logs matching `column "(a|b)" does not exist`)\n');
+  assert.equal(m.text, 'Zero requests fail in the 24 hours after each release');
+  assert.equal(m.signal, 'pod logs matching `column "(a|b)" does not exist`');
+  assert.equal(m.windowMs, 24 * 3600_000);
+});
+
 test('the gate is due after the longest window, counted from the last release', () => {
   assert.equal(dueAt(spec, '2026-11-23T03:17:15Z').toISOString(), '2026-11-24T03:17:15.000Z');
   assert.equal(dueAt('## Success metrics\n\n- Works (signal: logs)\n', '2026-11-23T03:17:15Z').toISOString(), '2026-11-23T03:17:15.000Z');
