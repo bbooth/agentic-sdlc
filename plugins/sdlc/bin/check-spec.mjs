@@ -7,7 +7,7 @@
 
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { PLACEHOLDER, bullets, emit, field, numbered, parseArgs, record, requireConfig, sections, subsections } from './lib.mjs';
+import { PLACEHOLDER, bullets, emit, field, numbered, parseArgs, record, sections, subsections } from './lib.mjs';
 
 export { comment } from './lib.mjs';
 
@@ -71,7 +71,6 @@ export function gateRecord(text, opts = {}) {
 }
 
 function main(argv) {
-  requireConfig();
   const { files, flags } = parseArgs(argv, ['--ticket', '--round']);
   if (files.length !== 1) {
     console.error('usage: check-spec.mjs <spec.md> [--ticket ID] [--round N] [--comment]');

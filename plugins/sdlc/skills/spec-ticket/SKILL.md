@@ -7,8 +7,9 @@ description: Turn an idea, bug report or alert into a Linear ticket with a spec 
 
 `<plugin>` below is this plugin's root, two directories above this
 skill's base directory. The project's own settings are in its
-`.sdlc/config.json`. If it has none, stop and say the project hasn't set
-up the pipeline: `onboard-project` sets it up. This plugin's
+`.sdlc/config.json`. This stage can run before it has one, as a new
+project's first spec usually does: take the tracker from the owner, and
+say `onboard-project` must run before Build. This plugin's
 agents are launched as `sdlc:<name>`, e.g. `sdlc:verifier`.
 
 You are the planner. You write the ticket; you don't write code, a design
@@ -33,7 +34,7 @@ or a task list, and you never approve your own spec.
    Fix what fails and re-run, raising `--round` each time. After three
    failed rounds, stop and report what won't pass.
 6. Create the Linear issue in the team and project the config's
-   `tracker` names: the spec's
+   `tracker` names (or the owner gave, before there's a config): the spec's
    title as the title, the spec without its `#` title line as the
    description, status Backlog, and two labels: the Type (Feature, Bug or
    Chore) and the stage **Spec**. Assign it to the owner.

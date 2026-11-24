@@ -47,7 +47,8 @@ export function checkConfig(c, { exists = () => true, agents = agentNames() } = 
 
   if (!c.generated || typeof c.generated !== 'object') error('generated is missing: { "paths": [...], "regenerate": "..." } (paths may be empty)');
   else {
-    patterns('generated.paths', c.generated.paths, { required: true });
+    if (c.generated.paths === undefined) error('generated.paths is missing (an empty list is fine)');
+    patterns('generated.paths', c.generated.paths);
     if ((c.generated.paths ?? []).length && !c.generated.regenerate) error('generated.regenerate is missing: the command the edit hook suggests instead of a hand edit');
   }
   patterns('unreviewed', c.unreviewed);

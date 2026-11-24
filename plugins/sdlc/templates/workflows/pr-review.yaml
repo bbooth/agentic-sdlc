@@ -12,3 +12,5 @@ jobs:
     uses: bbooth/agentic-sdlc/.github/workflows/pr-review.yaml@SDLC_SHA
     with:
       sdlc-ref: SDLC_SHA
+      # The repo variable CI_RUNNER picks self-hosted runners where it's set.
+      runner: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
