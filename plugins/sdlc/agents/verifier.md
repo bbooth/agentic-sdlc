@@ -42,7 +42,12 @@ Rules:
   something (no Docker, no browser), the verdict is `unverified` and the
   notes say what was missing. Never copy the author's claims or the
   Build record.
-- `met` needs evidence of kind `test`, `e2e` or `browser`. `inspection`
+- Some checks only the owner can make, such as an app on their phone.
+  When you are given the owner's own report of one, with a link to where
+  they made it, record it as evidence of kind `owner`: `ref` is that
+  link and `observed` is what they reported. Never write `owner` evidence
+  from anything else. Without such a report, that part is `unverified`.
+- `met` needs evidence of kind `test`, `e2e`, `browser` or `owner`. `inspection`
   (you read the code) can support a verdict but not carry it.
 - A `test` entry names the test as `path/to/file:TestName` and gives the
   exact command and the directory it runs in; the gate runs it again.

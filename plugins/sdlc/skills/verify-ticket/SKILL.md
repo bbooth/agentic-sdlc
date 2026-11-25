@@ -31,7 +31,10 @@ context.
 1. Check out the ticket's branch at its pushed head. Read the ticket: the
    criteria it covers are the `Covers` field.
 2. Run the `verifier` agent with the ticket ID, the ticket's description,
-   the base `origin/main` and the plugin root. Save its JSON reply, unedited, as the
+   the base `origin/main` and the plugin root. If a criterion needs a
+   check only the owner can make (an app on their phone), ask the owner
+   for it, post their report or screenshot on the ticket as a comment,
+   and give the verifier the owner's words and that comment's link. Save its JSON reply, unedited, as the
    verification file outside the repo.
 3. Run the gate:
    `node <plugin>/bin/check-verify.mjs --ticket <ID> --criteria <AC-1,AC-2> --verification <file> --write --comment`

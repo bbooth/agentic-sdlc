@@ -65,3 +65,9 @@ test('a command is split on quotes, never handed to a shell', () => {
   assert.deepEqual(argv("go test -run '^TestA$|^TestB$' ./internal/store/"), ['go', 'test', '-run', '^TestA$|^TestB$', './internal/store/']);
   assert.deepEqual(argv('npm test -- "tenant form"'), ['npm', 'test', '--', 'tenant form']);
 });
+
+test("the owner's own report counts as observed, when it links to where they said it", () => {
+  const owner = (ref) => ({ kind: 'owner', ref, observed: 'The APK on my phone shows the board' });
+  assert.deepEqual(failed({ criteria: [met('AC-1'), met('AC-2', [owner('https://linear.app/t/issue/T-1#comment-1')])] }), []);
+  assert.deepEqual(failed({ criteria: [met('AC-1'), met('AC-2', [owner('the owner said so')])] }), ['evidence']);
+});
