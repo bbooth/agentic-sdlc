@@ -88,7 +88,10 @@ export function podsCheck(name, pods, hash, digest) {
   if (mine.length === 0) problem = `No pods for ${hash}`;
   else if (statuses.some((c) => !c.ready)) problem = 'A container is not ready';
   else if (restarts > 0) problem = `${restarts} restarts since the rollout`;
-  else if (!statuses.some((c) => (c.imageID ?? '').includes(digest))) problem = `No container runs ${short(digest)}`;
+  // The tag's digest is usually a multi-arch index; a container's imageID is
+  // the platform manifest inside it. So the pod's spec, which names the
+  // index digest the kubelet pulled, counts too.
+  else if (!mine.some((p) => (p.spec?.containers ?? []).some((c) => (c.image ?? '').includes(digest))) && !statuses.some((c) => (c.imageID ?? '').includes(digest))) problem = `No container runs ${short(digest)}`;
   return { name: `pods:${name}`, pass: !problem, detail: problem ?? `${mine.length} pods ready on ${short(digest)}, no restarts` };
 }
 
