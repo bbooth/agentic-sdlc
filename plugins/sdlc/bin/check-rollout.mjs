@@ -164,11 +164,18 @@ async function main(argv) {
   const evidence = [];
   // Checks that fail only because the rollout hasn't finished.
   const notYet = new Set();
-  let after = digests(run('git', ['show', `origin/main:${config.source}`]));
+  // What main deploys now. Image Updater keeps committing after the merge
+  // (and the checkout can be older than the cluster), so read it fresh on
+  // every poll, not once.
+  const latest = () => {
+    const f = spawnSync('git', ['fetch', '--quiet', 'origin', '+refs/heads/main:refs/remotes/origin/main'], { encoding: 'utf8' });
+    if (f.status !== 0) console.error(`git fetch origin main failed, using the last fetched main: ${f.stderr.trim()}`);
+    return digests(run('git', ['show', `origin/main:${config.source}`]));
+  };
+  let after = latest();
   while (waiting(services, before, after).length && Date.now() < deadline) {
     await sleep(30_000);
-    spawnSync('git', ['fetch', '--quiet', 'origin', '+refs/heads/main:refs/remotes/origin/main']);
-    after = digests(run('git', ['show', `origin/main:${config.source}`]));
+    after = latest();
   }
   const late = waiting(services, before, after);
   if (late.length) notYet.add('images');
@@ -185,6 +192,7 @@ async function main(argv) {
       rollouts = Object.fromEntries(known.map((s) => [s, kget(config.namespace, 'rollout', s)]));
       if (!known.some((s) => unfinished(rollouts[s], after[s])) || Date.now() >= deadline) break;
       await sleep(30_000);
+      after = { ...after, ...latest() };
     }
     const runs = known.length ? kget(config.namespace, 'analysisruns').items : [];
     const pods = known.length ? kget(config.namespace, 'pods').items : [];
