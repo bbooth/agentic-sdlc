@@ -28,8 +28,9 @@ const analysisRun = (step, phase = 'Successful', hash = '6d4ddc4449') => ({
   metadata: { name: `identity-${hash}-21-${step}`, labels: { 'rollouts-pod-template-hash': hash, 'step-index': String(step) }, ownerReferences: [{ kind: 'Rollout', name: 'identity' }] },
   status: { phase, metricResults: [{ name: 'error-rate', phase, measurements: [{ phase, value: '[0]' }, { phase, value: '[0]' }] }] },
 });
-const pod = (over = {}) => ({
+const pod = (over = {}, image = `ghcr.io/bbooth/booking-identity@${OLD}`) => ({
   metadata: { labels: { 'app.kubernetes.io/name': 'identity', 'rollouts-pod-template-hash': '6d4ddc4449' } },
+  spec: { containers: [{ image }] },
   status: { containerStatuses: [{ ready: true, restartCount: 0, imageID: `ghcr.io/bbooth/booking-identity@${NEW}`, ...over }] },
 });
 
@@ -87,6 +88,8 @@ test('the new pods are ready, on the digest, and have not restarted', () => {
   assert.match(podsCheck('identity', [pod({ restartCount: 2 })], '6d4ddc4449', NEW).detail, /2 restarts/);
   assert.match(podsCheck('identity', [pod({ imageID: `x@${OLD}` })], '6d4ddc4449', NEW).detail, /No container runs/);
   assert.match(podsCheck('identity', [pod()], 'd56c8bcf8', NEW).detail, /No pods/);
+  // A multi-arch tag: the spec names the index, the container reports the platform manifest.
+  assert.equal(podsCheck('identity', [pod({ imageID: 'x@sha256:platform' }, `ghcr.io/bbooth/booking-identity:latest@${NEW}`)], '6d4ddc4449', NEW).pass, true);
 });
 
 test('new pods that served nothing, or faulted, fail', () => {

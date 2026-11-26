@@ -88,7 +88,10 @@ export function podsCheck(name, pods, hash, digest) {
   if (mine.length === 0) problem = `No pods for ${hash}`;
   else if (statuses.some((c) => !c.ready)) problem = 'A container is not ready';
   else if (restarts > 0) problem = `${restarts} restarts since the rollout`;
-  else if (!statuses.some((c) => (c.imageID ?? '').includes(digest))) problem = `No container runs ${short(digest)}`;
+  // The tag's digest is usually a multi-arch index; a container's imageID is
+  // the platform manifest inside it. So the pod's spec, which names the
+  // index digest the kubelet pulled, counts too.
+  else if (!mine.some((p) => (p.spec?.containers ?? []).some((c) => (c.image ?? '').includes(digest))) && !statuses.some((c) => (c.imageID ?? '').includes(digest))) problem = `No container runs ${short(digest)}`;
   return { name: `pods:${name}`, pass: !problem, detail: problem ?? `${mine.length} pods ready on ${short(digest)}, no restarts` };
 }
 
@@ -164,11 +167,18 @@ async function main(argv) {
   const evidence = [];
   // Checks that fail only because the rollout hasn't finished.
   const notYet = new Set();
-  let after = digests(run('git', ['show', `origin/main:${config.source}`]));
+  // What main deploys now. Image Updater keeps committing after the merge
+  // (and the checkout can be older than the cluster), so read it fresh on
+  // every poll, not once.
+  const latest = () => {
+    const f = spawnSync('git', ['fetch', '--quiet', 'origin', '+refs/heads/main:refs/remotes/origin/main'], { encoding: 'utf8' });
+    if (f.status !== 0) console.error(`git fetch origin main failed, using the last fetched main: ${f.stderr.trim()}`);
+    return digests(run('git', ['show', `origin/main:${config.source}`]));
+  };
+  let after = latest();
   while (waiting(services, before, after).length && Date.now() < deadline) {
     await sleep(30_000);
-    spawnSync('git', ['fetch', '--quiet', 'origin', '+refs/heads/main:refs/remotes/origin/main']);
-    after = digests(run('git', ['show', `origin/main:${config.source}`]));
+    after = latest();
   }
   const late = waiting(services, before, after);
   if (late.length) notYet.add('images');
@@ -185,6 +195,7 @@ async function main(argv) {
       rollouts = Object.fromEntries(known.map((s) => [s, kget(config.namespace, 'rollout', s)]));
       if (!known.some((s) => unfinished(rollouts[s], after[s])) || Date.now() >= deadline) break;
       await sleep(30_000);
+      after = { ...after, ...latest() };
     }
     const runs = known.length ? kget(config.namespace, 'analysisruns').items : [];
     const pods = known.length ? kget(config.namespace, 'pods').items : [];

@@ -16,9 +16,11 @@ import { pathToFileURL } from 'node:url';
 import { config, emit, matchesAny, parseArgs, patterns, record, requireConfig } from './lib.mjs';
 
 const PREFIXES = config.branchPrefixes ?? [];
-// Lines added plus removed, not counting generated files or lockfiles, with
-// tests at half. Past this a task is more than one PR's review. Lockfiles
-// still get reviewed.
+// Lines added plus removed, not counting generated files, lockfiles or whole
+// deleted files, with tests at half. Past this a task is more than one PR's
+// review. Lockfiles still get reviewed. A deleted file is quick to review
+// (does anything still use it?), so removing dead code shouldn't need a
+// string of PRs.
 const SIZE_LIMITS = { S: 300, M: 800 };
 const LOCKFILES = /(^|\/)(Cargo\.lock|package-lock\.json|npm-shrinkwrap\.json|yarn\.lock|pnpm-lock\.yaml|bun\.lockb?|go\.sum|go\.work\.sum|poetry\.lock|uv\.lock|Pipfile\.lock|Gemfile\.lock|composer\.lock)$/;
 const UNCOUNTED = [LOCKFILES, ...patterns([...(config.generated?.paths ?? []), ...(config.unreviewed ?? [])])];
@@ -83,10 +85,11 @@ export function diffChecks({ branch, changes, size }) {
   if (status) add('status_updated', files.includes(status), files.includes(status) ? `${status} changed` : `${status} is updated in the same PR as the work`);
 
   // Tests count at half, so testing well doesn't crowd out the code.
-  const counted = changes.filter((c) => !UNCOUNTED.some((re) => re.test(c.file)));
+  const counted = changes.filter((c) => !c.deleted && !UNCOUNTED.some((re) => re.test(c.file)));
+  const deletedFiles = changes.filter((c) => c.deleted).length;
   const testLines = counted.filter((c) => isTest(c.file)).reduce((n, c) => n + c.lines, 0);
   const lines = counted.reduce((n, c) => n + c.lines, 0) - testLines + Math.ceil(testLines / 2);
-  if (size in SIZE_LIMITS) add('size', lines <= SIZE_LIMITS[size], `${lines} lines changed, counting ${testLines} test lines at half; size ${size} allows ${SIZE_LIMITS[size]}`);
+  if (size in SIZE_LIMITS) add('size', lines <= SIZE_LIMITS[size], `${lines} lines changed, counting ${testLines} test lines at half${deletedFiles ? ` and not counting ${deletedFiles} deleted files` : ''}; size ${size} allows ${SIZE_LIMITS[size]}`);
   else add('size', false, 'Pass the task\'s size: --size S or --size M');
 
   return checks;
@@ -111,10 +114,12 @@ const has = (cmd, args = ['--version']) => spawnSync(cmd, args, { stdio: 'ignore
 
 function gather(base) {
   const mergeBase = git('merge-base', base, 'HEAD');
-  const added = new Set(git('diff', '--name-only', '--diff-filter=A', mergeBase, 'HEAD').split('\n').filter(Boolean));
+  const names = (filter) => new Set(git('diff', '--name-only', `--diff-filter=${filter}`, mergeBase, 'HEAD').split('\n').filter(Boolean));
+  const added = names('A');
+  const deleted = names('D');
   const changes = git('diff', '--numstat', mergeBase, 'HEAD').split('\n').filter(Boolean).map((l) => {
     const [a, d, file] = l.split('\t');
-    return { file, lines: (Number(a) || 0) + (Number(d) || 0), added: added.has(file) };
+    return { file, lines: (Number(a) || 0) + (Number(d) || 0), added: added.has(file), deleted: deleted.has(file) };
   });
   return { branch: git('rev-parse', '--abbrev-ref', 'HEAD'), commit: git('rev-parse', '--short', 'HEAD'), dirty: git('status', '--porcelain') !== '', changes };
 }

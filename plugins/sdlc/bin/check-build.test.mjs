@@ -55,6 +55,13 @@ test('lockfiles do not count toward size', () => {
   assert.deepEqual(failed([...good, c('docs/Cargo.lock.md', 900)]), ['size']);
 });
 
+test('whole deleted files do not count toward size', () => {
+  const file = 'services/media/internal/service/photos.go';
+  assert.deepEqual(failed([...good, { file, lines: 2000, added: false, deleted: true }]), []);
+  // Lines removed from a file that stays still count.
+  assert.deepEqual(failed([...good, c(file, 2000)]), ['size']);
+});
+
 test('the status file is part of the work', () => {
   assert.deepEqual(failed(good.slice(0, 2)), ['status_updated']);
 });
