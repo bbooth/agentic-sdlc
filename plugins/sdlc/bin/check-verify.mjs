@@ -18,8 +18,9 @@ import { findingsCheck } from './check-build.mjs';
 import { config, emit, matchesAny, parseArgs, patterns, record, requireConfig } from './lib.mjs';
 
 // Evidence that shows behavior. Reading the code ("inspection") supports a
-// verdict but never carries one.
-const OBSERVED = ['test', 'e2e', 'browser'];
+// verdict but never carries one. "owner" is what the owner saw where no
+// session can look (an app on their phone); it links to their own report.
+const OBSERVED = ['test', 'e2e', 'browser', 'owner'];
 const KINDS = [...OBSERVED, 'inspection'];
 // The only commands the gate will run from a verification file. They run
 // without a shell, so quoting is all the syntax a command can use.
@@ -55,10 +56,10 @@ export function verificationChecks({ criteria, verification, head, files }) {
   add('criteria_met', missing.length === 0 && unmet.length === 0,
     unmet.length ? unmet.map((c) => `${c.id} is ${c.verdict ?? 'not judged'}${c.notes ? ` (${c.notes})` : ''}`).join('; ') : 'Every criterion is met');
 
-  const malformed = evidence.filter((e) => !KINDS.includes(e.kind) || !e.ref || !e.observed);
+  const malformed = evidence.filter((e) => !KINDS.includes(e.kind) || !e.ref || !e.observed || (e.kind === 'owner' && !/^https:\/\//.test(e.ref)));
   const thin = entries.filter((c) => !(c.evidence ?? []).some((e) => OBSERVED.includes(e.kind)));
   add('evidence', malformed.length === 0 && thin.length === 0,
-    malformed.length ? `Evidence needs a kind (${KINDS.join(', ')}), a ref and what was observed: ${malformed.map((e) => e.id).join(', ')}`
+    malformed.length ? `Evidence needs a kind (${KINDS.join(', ')}), a ref (for owner, a link to the owner's report) and what was observed: ${malformed.map((e) => e.id).join(', ')}`
       : thin.length ? `Only read, never run: ${thin.map((c) => c.id).join(', ')}` : `${evidence.length} pieces of evidence, each criterion observed running`);
 
   const need = required(files);
