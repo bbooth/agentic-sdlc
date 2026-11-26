@@ -101,14 +101,42 @@ owner merges the result. Everything goes in one PR.
 9. **Point to the pipeline in `CLAUDE.md`**: a short section saying work
    goes through the ticket pipeline (start with `spec-ticket`), and that
    `.sdlc/config.json` holds what the gates know about the repo.
-10. **Open the PR.** Commit, push and open it with a Summary, a Test plan
+10. **Put the repo on the owner's board**, if they run one: `bbooth/sdlc-board`
+    shows every onboarded repo, and reads it through a read-only GitHub
+    App. Skip this step for any other owner, or if the owner doesn't
+    want the repo on the board, and say so in the PR. Use the owner's
+    `gh` sign-in. Check each half first: a repo already in both is left
+    as it is.
+    1. **The App's installation.** Find it: of
+       `gh api /user/installations --jq '.installations[] | {id, app_slug, permissions}'`,
+       the one with only `checks`, `contents`, `metadata` and
+       `pull_requests`, all `read`, whose repositories
+       (`gh api --paginate /user/installations/<id>/repositories --jq '.repositories[].full_name'`)
+       include `bbooth/sdlc-board`. If the new repo isn't listed, add it:
+       `gh api -X PUT /user/installations/<id>/repositories/$(gh api repos/<owner>/<repo> --jq .id)`.
+       If there's no such installation, or GitHub refuses the call, don't
+       retry: put `https://github.com/settings/installations/<id>` (or
+       "the board's GitHub App isn't set up: `argocd/README.md` step 4
+       in sdlc-board") and the repo to add under **For the owner**.
+    2. **The board's list.** If `deploy/values.yaml` on sdlc-board's
+       `main` has no `repos` entry with this `name`, open a PR to
+       sdlc-board, branched from its `main` as `infra/board-<repo>`,
+       that adds one: `name` (`owner/repo`), `linearTeam` (the
+       tracker's `key`), `linearProject` (the tracker's `project`), and
+       `rolloutNamespace` (the namespace in `.sdlc/rollout.json`) only
+       if the repo has one. Label it `no-ticket` unless onboarding has a
+       ticket. The board reads the list at start, so the repo shows once
+       that PR merges and deploys. Link it from this PR.
+11. **Open the PR.** Commit, push and open it with a Summary, a Test plan
     checklist (`check-config.mjs`'s output, which entries are plans), and
     a section **For the owner** listing what only they can do:
     - make `pr-review` a required check on the default branch;
     - add the `ROLLOUT_WATCH_KUBECONFIG` secret (a read-only kubeconfig
       for the app's cluster) and set the runner, if there's a rollout
       watch;
-    - create the `no-ticket` label, and `breaking-ok` if CI reads it.
+    - create the `no-ticket` label, and `breaking-ok` if CI reads it;
+    - merge the sdlc-board PR from step 10, or add the repo to the
+      board's App by hand if that step couldn't.
     Don't merge it: the owner does.
 
 ## Rules
